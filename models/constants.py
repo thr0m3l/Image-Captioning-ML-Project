@@ -1,0 +1,4 @@
+PAD = 0
+START = 1
+END = 2
+UNK = 3
