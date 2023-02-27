@@ -1,14 +1,3 @@
-'''
-This code is mainly taken from the following github repositories:
-1.  parksunwoo/show_attend_and_tell_pytorch
-Link: https://github.com/parksunwoo/show_attend_and_tell_pytorch/blob/master/prepro.py
-
-2. sgrvinod/a-PyTorch-Tutorial-to-Image-Captioning
-Link: https://github.com/sgrvinod/a-PyTorch-Tutorial-to-Image-Captioning
-
-This script processes the COCO dataset
-'''  
-
 import os
 import pickle
 from collections import Counter
