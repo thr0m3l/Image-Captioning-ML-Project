@@ -6,6 +6,7 @@ from PIL import Image
 from pycocotools.coco import COCO
 from torchvision import transforms
 
+
 class DataLoader(data.Dataset):
     def __init__(self, root, json, vocab, transform=None):
 
@@ -38,8 +39,9 @@ class DataLoader(data.Dataset):
     def __len__(self):
         return len(self.ids)
 
+
 def collate_fn(data):
-    data.sort(key=lambda  x: len(x[1]), reverse=True)
+    data.sort(key=lambda x: len(x[1]), reverse=True)
     images, captions = zip(*data)
 
     images = torch.stack(images, 0)
@@ -51,13 +53,19 @@ def collate_fn(data):
         targets[i, :end] = cap[:end]
     return images, targets, lengths
 
+
 def get_loader(method, vocab, batch_size):
 
     # train/validation paths
     if method == 'train':
         root = 'data/train2014_resized'
         json = 'data/annotations/captions_train2014.json'
-    elif method =='val':
+    elif method == 'val':
+        root = 'data/val2014_resized'
+        json = 'data/annotations/captions_val2014.json'
+    elif method == 'demo':
+        # if the method is demo, then just pick a random image from the
+        # validation set and its corresponding caption
         root = 'data/val2014_resized'
         json = 'data/annotations/captions_val2014.json'
 
@@ -67,7 +75,7 @@ def get_loader(method, vocab, batch_size):
         transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
         transforms.Normalize((0.485, 0.456, 0.406),
-                            (0.229, 0.224, 0.225))])
+                             (0.229, 0.224, 0.225))])
 
     coco = DataLoader(root=root, json=json, vocab=vocab, transform=transform)
 
@@ -76,6 +84,8 @@ def get_loader(method, vocab, batch_size):
                                               shuffle=True,
                                               num_workers=1,
                                               collate_fn=collate_fn)
-    
-    
+    # randomly pick only one image and its corresponding caption
+    if method == 'demo':
+        data_loader = next(iter(data_loader))
+
     return data_loader

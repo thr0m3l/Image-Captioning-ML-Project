@@ -5,6 +5,7 @@ import nltk
 from PIL import Image
 from pycocotools.coco import COCO
 
+
 class Vocabulary(object):
     def __init__(self):
         self.word2idx = {}
@@ -25,6 +26,7 @@ class Vocabulary(object):
     def __len__(self):
         return len(self.word2idx)
 
+
 def build_vocab(json, threshold):
     coco = COCO(json)
     counter = Counter()
@@ -38,14 +40,15 @@ def build_vocab(json, threshold):
     words = [word for word, cnt in counter.items() if cnt >= threshold]
 
     vocab = Vocabulary()
-    vocab.add_word('<pad>') # 0
-    vocab.add_word('<start>') # 1
-    vocab.add_word('<end>') # 2
-    vocab.add_word('<unk>') # 3
+    vocab.add_word('<pad>')  # 0
+    vocab.add_word('<start>')  # 1
+    vocab.add_word('<end>')  # 2
+    vocab.add_word('<unk>')  # 3
 
     for i, word in enumerate(words):
         vocab.add_word(word)
     return vocab
+
 
 def resize_image(image):
     width, height = image.size
@@ -63,17 +66,22 @@ def resize_image(image):
     image = image.resize([224, 224], Image.ANTIALIAS)
     return image
 
-def main(caption_path,vocab_path,threshold):
-    vocab = build_vocab(json=caption_path,threshold=threshold)
+
+caption_path = './data/annotations/captions_train2014.json'
+vocab_path = './data/vocab.pkl'
+threshold = 5
+
+if __name__ == '__main__':
+    vocab = build_vocab(json=caption_path, threshold=threshold)
     with open(vocab_path, 'wb') as f:
         pickle.dump(vocab, f)
 
     # print("resizing images...")
-    splits = ['val','train']
+    splits = ['val', 'train']
 
     for split in splits:
-        folder = './data/%s2014' %split
-        resized_folder = './data/%s2014_resized/' %split
+        folder = './data/%s2014' % split
+        resized_folder = './data/%s2014_resized/' % split
         if not os.path.exists(resized_folder):
             os.makedirs(resized_folder)
         image_files = os.listdir(folder)
@@ -82,12 +90,7 @@ def main(caption_path,vocab_path,threshold):
             with open(os.path.join(folder, image_file), 'r+b') as f:
                 with Image.open(f) as image:
                     image = resize_image(image)
-                    image.save(os.path.join(resized_folder, image_file), image.format)
+                    image.save(os.path.join(
+                        resized_folder, image_file), image.format)
 
     print("done resizing images...")
-
-caption_path = './data/annotations/captions_train2014.json'
-vocab_path = './data/vocab.pkl'
-threshold = 5
-
-# main(caption_path,vocab_path,threshold)

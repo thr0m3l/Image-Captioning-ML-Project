@@ -1,32 +1,42 @@
 from torch import nn
 from pytorch_pretrained_bert import BertTokenizer, BertModel
 import torch
-from constants import *
+# from constants import *
+
+
+PAD = 0
+START = 1
+END = 2
+UNK = 3
+
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+BertModel = BertModel.from_pretrained('bert-base-uncased').to(device)
+BertModel.eval()
 
 
 class Decoder(nn.Module):
 
-    def __init__(self, vocab_size, use_bert, device):
+    def __init__(self, vocab, use_bert, device):
         super(Decoder, self).__init__()
         self.encoder_dim = 2048
         self.attention_dim = 512
         self.use_bert = use_bert
         self.device = device
+        self.vocab = vocab
+        self.vocab_size = len(vocab)
+        # Load pre-trained model (weights)
+        
 
         if use_bert:
             self.embed_dim = 768
             # Load pre-trained model tokenizer (vocabulary)
             self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
 
-            # Load pre-trained model (weights)
-            BertModel = BertModel.from_pretrained(
-                'bert-base-uncased').to(self.device)
-            BertModel.eval()
+            
         else:
             self.embed_dim = 512
 
         self.decoder_dim = 512
-        self.vocab_size = vocab_size
         self.dropout = 0.5
 
         # soft attention
@@ -51,7 +61,7 @@ class Decoder(nn.Module):
         self.fc.weight.data.uniform_(-0.1, 0.1)
 
         if not use_bert:
-            self.embedding = nn.Embedding(vocab_size, self.embed_dim)
+            self.embedding = nn.Embedding(self.vocab_size, self.embed_dim)
             self.embedding.weight.data.uniform_(-0.1, 0.1)
 
             for p in self.embedding.parameters():
@@ -78,7 +88,7 @@ class Decoder(nn.Module):
                 while len(cap_idx) < max_dec_len:
                     cap_idx.append(PAD)
 
-                cap = ' '.join([vocab.idx2word[word_idx.item()]
+                cap = ' '.join([self.vocab.idx2word[word_idx.item()]
                                for word_idx in cap_idx])
                 cap = u'[CLS] '+cap
 
@@ -165,3 +175,5 @@ class Decoder(nn.Module):
 
         # preds, sorted capts, dec lens, attention wieghts
         return predictions, encoded_captions, dec_len, alphas
+    
+    
