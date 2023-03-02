@@ -67,7 +67,7 @@ class Decoder(nn.Module):
             for p in self.embedding.parameters():
                 p.requires_grad = True
 
-    def forward(self, encoder_out, encoded_captions, caption_lengths):
+    def forward(self, encoder_out, encoded_captions, caption_lengths, mode = 'inference'):
         batch_size = encoder_out.size(0)
         encoder_dim = encoder_out.size(-1)
         vocab_size = self.vocab_size

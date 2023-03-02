@@ -27,15 +27,15 @@ from models.loss import loss_obj
 ##### HYPERPARAMS #####
 grad_clip = 5.
 num_epochs = 4
-batch_size = 16
+batch_size = 15
 decoder_lr = 0.0004
 
 glove_model = False
 bert_model = True
 
 from_checkpoint = True
-train_model = True
-valid_model = True
+train_model = False
+valid_model = False
 
 encoder_path = 'checkpoints_bert/encoder_epoch4'
 decoder_path = 'checkpoints_bert/decoder_epoch4'
@@ -44,6 +44,33 @@ PAD = 0
 START = 1
 END = 2
 UNK = 3
+
+
+def load_checkpoint():
+    if torch.cuda.is_available():
+        if bert_model:
+            print('Pre-Trained BERT Model')
+            encoder_checkpoint = torch.load('./checkpoints/encoder_epoch4')
+            decoder_checkpoint = torch.load('./checkpoints/decoder_epoch4')
+        else:
+            print('Pre-Trained Baseline Model')
+            encoder_checkpoint = torch.load('./checkpoints/encoder_epoch2')
+            decoder_checkpoint = torch.load('./checkpoints/encoder_epoch2')
+    else:
+        if bert_model:
+            print('Pre-Trained BERT Model')
+            encoder_checkpoint = torch.load(
+                './checkpoints/encoder_bert', map_location='cpu')
+            decoder_checkpoint = torch.load(
+                './checkpoints/decoder_bert', map_location='cpu')
+        else:
+            print('Pre-Trained Baseline Model')
+            encoder_checkpoint = torch.load(
+                './checkpoints/encoder_baseline', map_location='cpu')
+            decoder_checkpoint = torch.load(
+                './checkpoints/decoder_baseline', map_location='cpu')
+
+    return encoder_checkpoint, decoder_checkpoint
 
 
 def init_model(device, mode='train'):
@@ -60,44 +87,15 @@ def init_model(device, mode='train'):
         train_loader = get_loader('train', vocab, batch_size)
     elif mode == 'valid':
         train_loader = get_loader('val', vocab, batch_size)
+    else:
+        train_loader = get_loader('demo', vocab, batch_size)
 
     if from_checkpoint:
 
         encoder = Encoder().to(device)
         decoder = Decoder(vocab, use_bert=bert_model, device='cuda').to(device)
 
-        if torch.cuda.is_available():
-            if bert_model:
-                print('Pre-Trained BERT Model')
-                encoder_checkpoint = torch.load('./checkpoints/encoder_epoch4')
-                decoder_checkpoint = torch.load('./checkpoints/decoder_epoch4')
-            elif glove_model:
-                print('Pre-Trained GloVe Model')
-                encoder_checkpoint = torch.load('./checkpoints/encoder_glove')
-                decoder_checkpoint = torch.load('./checkpoints/decoder_glove')
-            else:
-                print('Pre-Trained Baseline Model')
-                encoder_checkpoint = torch.load('./checkpoints/encoder_epoch2')
-                decoder_checkpoint = torch.load('./checkpoints/encoder_epoch2')
-        else:
-            if bert_model:
-                print('Pre-Trained BERT Model')
-                encoder_checkpoint = torch.load(
-                    './checkpoints/encoder_bert', map_location='cpu')
-                decoder_checkpoint = torch.load(
-                    './checkpoints/decoder_bert', map_location='cpu')
-            elif glove_model:
-                print('Pre-Trained GloVe Model')
-                encoder_checkpoint = torch.load(
-                    './checkpoints/encoder_glove', map_location='cpu')
-                decoder_checkpoint = torch.load(
-                    './checkpoints/decoder_glove', map_location='cpu')
-            else:
-                print('Pre-Trained Baseline Model')
-                encoder_checkpoint = torch.load(
-                    './checkpoints/encoder_baseline', map_location='cpu')
-                decoder_checkpoint = torch.load(
-                    './checkpoints/decoder_baseline', map_location='cpu')
+        encoder_checkpoint, decoder_checkpoint = load_checkpoint()
 
         encoder.load_state_dict(encoder_checkpoint['model_state_dict'])
         decoder_optimizer = torch.optim.Adam(
@@ -117,7 +115,7 @@ def init_model(device, mode='train'):
     return vocab, train_loader, encoder, decoder, decoder_optimizer
 
 
-def print_sample(vocab, hypotheses, references, test_references, imgs, alphas, k, show_att=False):
+def print_sample(vocab, hypotheses, references, test_references, imgs, k, show_att=False):
 
     img_dim = 336  # 14*24
 
@@ -135,28 +133,10 @@ def print_sample(vocab, hypotheses, references, test_references, imgs, alphas, k
     img = imgs[0][k]
     imageio.imwrite('img.jpg', img)
 
-    if show_att:
-        image = Image.open('img.jpg')
-        image = image.resize([img_dim, img_dim], Image.LANCZOS)
-        for t in range(len(hyp_sentence)):
-
-            plt.subplot(np.ceil(len(hyp_sentence) / 5.), 5, t + 1)
-
-            plt.text(0, 1, '%s' % (
-                hyp_sentence[t]), color='black', backgroundcolor='white', fontsize=12)
-            plt.imshow(image)
-            current_alpha = alphas[0][t, :].detach().numpy()
-            alpha = skimage.transform.resize(current_alpha, [img_dim, img_dim])
-            if t == 0:
-                plt.imshow(alpha, alpha=0)
-            else:
-                plt.imshow(alpha, alpha=0.7)
-            plt.axis('off')
-    else:
-        img = imageio.imread('img.jpg')
-        plt.imshow(img)
-        plt.axis('off')
-        plt.show()
+    img = imageio.imread('img.jpg')
+    plt.imshow(img)
+    plt.axis('off')
+    plt.show()
 
 
 def generate_caption(vocab, device, encoder, decoder, val_loader):
@@ -218,11 +198,11 @@ def generate_caption(vocab, device, encoder, decoder, val_loader):
             all_imgs.append(imgs_jpg)
 
         print_sample(vocab, hypotheses, references, test_references,
-                     all_imgs, all_alphas, i, False)
+                     all_imgs, i, show_att=False)
 
 
 if __name__ == '__main__':
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     vocab, val_loader, encoder, decoder, decoder_optimizer = init_model(
-        device, mode='train')
+        device, mode='valid')
     generate_caption(vocab, device, encoder, decoder, val_loader)

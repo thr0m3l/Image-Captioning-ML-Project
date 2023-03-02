@@ -143,3 +143,9 @@ def validate(device, encoder, decoder, val_loader, criterion, loss_obj):
         if i == 0:
             all_alphas.append(alphas)
             all_imgs.append(imgs_jpg)
+
+if __name__ == '___main___':
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    vocab, val_loader, encoder, decoder, decoder_optimizer = init_model(
+        device, mode='valid')
+    validate(vocab, device, encoder, decoder, val_loader)

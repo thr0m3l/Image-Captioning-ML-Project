@@ -39,6 +39,28 @@ class DataLoader(data.Dataset):
     def __len__(self):
         return len(self.ids)
 
+# Create another dataloader for the demo which loads a single or multiple images without captions
+
+
+class DataLoaderDemo(data.Dataset):
+    def __init__(self, root, vocab, transform=None):
+
+        self.root = root
+        self.vocab = vocab
+        self.transform = transform
+        self.ids = list(range(len(os.listdir(root))))
+
+    def __getitem__(self, index):
+        vocab = self.vocab
+        path = os.listdir(self.root)[index]
+        image = Image.open(os.path.join(self.root, path)).convert('RGB')
+        if self.transform is not None:
+            image = self.transform(image)
+        return image, path
+
+    def __len__(self):
+        return len(self.ids)
+
 
 def collate_fn(data):
     data.sort(key=lambda x: len(x[1]), reverse=True)
@@ -54,6 +76,12 @@ def collate_fn(data):
     return images, targets, lengths
 
 
+def collate_fn_demo(data):
+    images, paths = zip(*data)
+    images = torch.stack(images, 0)
+    return images, paths
+
+
 def get_loader(method, vocab, batch_size):
 
     # train/validation paths
@@ -64,10 +92,7 @@ def get_loader(method, vocab, batch_size):
         root = 'data/val2014_resized'
         json = 'data/annotations/captions_val2014.json'
     elif method == 'demo':
-        # if the method is demo, then just pick a random image from the
-        # validation set and its corresponding caption
-        root = 'data/val2014_resized'
-        json = 'data/annotations/captions_val2014.json'
+        root = 'data/demo'
 
     # rasnet transformation/normalization
     transform = transforms.Compose([
@@ -77,15 +102,20 @@ def get_loader(method, vocab, batch_size):
         transforms.Normalize((0.485, 0.456, 0.406),
                              (0.229, 0.224, 0.225))])
 
-    coco = DataLoader(root=root, json=json, vocab=vocab, transform=transform)
-
-    data_loader = torch.utils.data.DataLoader(dataset=coco,
-                                              batch_size=batch_size,
-                                              shuffle=True,
-                                              num_workers=1,
-                                              collate_fn=collate_fn)
-    # randomly pick only one image and its corresponding caption
     if method == 'demo':
-        data_loader = next(iter(data_loader))
+        coco = DataLoaderDemo(root=root, vocab=vocab, transform=transform)
+        data_loader = torch.utils.data.DataLoader(dataset=coco,
+                                                  batch_size=batch_size,
+                                                  shuffle=False,
+                                                  num_workers=1,
+                                                  collate_fn=collate_fn_demo)
+    else:
+        coco = DataLoader(root=root, json=json,
+                          vocab=vocab, transform=transform)
+        data_loader = torch.utils.data.DataLoader(dataset=coco,
+                                                  batch_size=batch_size,
+                                                  shuffle=True,
+                                                  num_workers=1,
+                                                  collate_fn=collate_fn)
 
     return data_loader
