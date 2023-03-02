@@ -79,6 +79,58 @@ def init_model(device, mode='train'):
         print("Checkpoint loaded.")
 
 
+def print_sample(hypotheses, references, test_references, imgs, alphas, k, show_att, losses):
+    bleu_1 = corpus_bleu(references, hypotheses, weights=(1, 0, 0, 0))
+    bleu_2 = corpus_bleu(references, hypotheses, weights=(0, 1, 0, 0))
+    bleu_3 = corpus_bleu(references, hypotheses, weights=(0, 0, 1, 0))
+    bleu_4 = corpus_bleu(references, hypotheses, weights=(0, 0, 0, 1))
+
+    print("Validation loss: "+str(losses.avg))
+    print("BLEU-1: "+str(bleu_1))
+    print("BLEU-2: "+str(bleu_2))
+    print("BLEU-3: "+str(bleu_3))
+    print("BLEU-4: "+str(bleu_4))
+
+    img_dim = 336  # 14*24
+
+    hyp_sentence = []
+    for word_idx in hypotheses[k]:
+        hyp_sentence.append(vocab.idx2word[word_idx])
+
+    ref_sentence = []
+    for word_idx in test_references[k]:
+        ref_sentence.append(vocab.idx2word[word_idx])
+
+    print('Hypotheses: '+" ".join(hyp_sentence))
+    print('References: '+" ".join(ref_sentence))
+
+    img = imgs[0][k]
+    imageio.imwrite('img.jpg', img)
+
+    if show_att:
+        image = Image.open('img.jpg')
+        image = image.resize([img_dim, img_dim], Image.LANCZOS)
+        for t in range(len(hyp_sentence)):
+
+            plt.subplot(np.ceil(len(hyp_sentence) / 5.), 5, t + 1)
+
+            plt.text(0, 1, '%s' % (
+                hyp_sentence[t]), color='black', backgroundcolor='white', fontsize=12)
+            plt.imshow(image)
+            current_alpha = alphas[0][t, :].detach().numpy()
+            alpha = skimage.transform.resize(current_alpha, [img_dim, img_dim])
+            if t == 0:
+                plt.imshow(alpha, alpha=0)
+            else:
+                plt.imshow(alpha, alpha=0.7)
+            plt.axis('off')
+    else:
+        img = imageio.imread('img.jpg')
+        plt.imshow(img)
+        plt.axis('off')
+        plt.show()
+
+
 def validate(device, encoder, decoder, val_loader, criterion, loss_obj):
 
     references = []
@@ -139,10 +191,14 @@ def validate(device, encoder, decoder, val_loader, criterion, loss_obj):
             temp_preds.append(pred)  # remove pads, start, and end
         preds = temp_preds
         hypotheses.extend(preds)
+        
 
         if i == 0:
             all_alphas.append(alphas)
             all_imgs.append(imgs_jpg)
+    
+    print_sample(hypotheses, references, test_references, all_imgs, all_alphas, 0, False, losses)
+
 
 if __name__ == '___main___':
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
